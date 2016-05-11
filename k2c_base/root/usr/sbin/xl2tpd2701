@@ -1,0 +1,8 @@
+#! /usr/bin/bash
+
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/root/bin
+
+#set -ex
+
+/usr/sbin/xl2tpd -D -c /etc/xl2tpd/xl2tpd_2701.conf -p /var/run/xl2tpd/xl2tpd_2701.pid
+

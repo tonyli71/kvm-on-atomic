@@ -1,0 +1,5 @@
+DEVICE=br3
+TYPE=Bridge
+BOOTPROTO=none
+NAME=br3
+ONBOOT=yes

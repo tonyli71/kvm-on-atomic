@@ -1,0 +1,22 @@
+ms-dns  8.8.8.8
+# ms-dns  192.168.1.3
+# ms-wins 192.168.1.2
+# ms-wins 192.168.1.4
+#noccp
+#idle 1800
+#mtu 1410
+#mru 1410
+#nodefaultroute
+#connect-delay 5000
+require-mschap-v2
+asyncmap 0
+auth
+crtscts
+lock
+hide-password
+modem
+debug
+name l2tpd
+proxyarp
+lcp-echo-interval 10
+lcp-echo-failure 100

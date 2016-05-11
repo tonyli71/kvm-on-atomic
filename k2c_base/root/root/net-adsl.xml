@@ -1,0 +1,5 @@
+<network>
+  <name>adsl</name>
+  <forward mode='bridge'/>
+  <bridge name='br1'/>
+</network>
