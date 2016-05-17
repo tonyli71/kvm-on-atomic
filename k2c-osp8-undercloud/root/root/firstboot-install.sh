@@ -3,7 +3,11 @@
 if [ ! -f /root/updated ] ; then
 
 yum -y install rp-pppoe openswan xl2tpd
-yum -y install sudo python-rdomanager-oscplugin rabbitmq-server facter openstack-utils keepalived iptables-services
+
+yum -y install sudo python-rdomanager-oscplugin rabbitmq-server facter openstack-utils keepalived iptables-services pystache xinetd httpd \
+openstack-neutron* openstack-ironic* openstack-nova* openstack-tripleo* openstack-heat* openstack-keystone* openstack-glance* \
+openstack-puppet-modules* puppet selinux-policy-devel ansible
+
 yum -y update
 
 systemctl disable  firewalld.service
@@ -29,6 +33,7 @@ cp /usr/lib/python2.7/site-packages/instack_undercloud/undercloud.py.tli /usr/li
 
 chmod +x /etc/systemd/system/osp-uc-conf.service
 openstack-config --set /etc/systemd/system/osp-uc-conf.service Service TTYPath /dev/tty1
+openstack-config --set /etc/systemd/system/osp-uc-conf.service Service StandardOupt tty
 systemctl enable osp-uc-conf.service
 
 touch /root/updated

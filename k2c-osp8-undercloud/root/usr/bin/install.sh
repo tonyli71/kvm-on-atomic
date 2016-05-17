@@ -31,7 +31,12 @@ fi
 
 
 # Create Container
-chroot ${HOST} /usr/bin/docker create --privileged --net=none -ti -h ${MY_HOSTNAME} -e NAME=${NAME} -e MY_IP=${MY_IP} -e VM_IP=${VM_IP} -e YUM_REPO_PREFIX=${YUM_REPO_PREFIX} -e MY_PREFIX=${MY_PREFIX} -e MY_GATEWAY=${MY_GATEWAY} -e VM_VCPU=${VM_VCPU} -e VM_RAM=${VM_RAM} -e VNC_PORT=${VNC_PORT} -e MY_VMNAME=${MY_VMNAME} --name ${NAME} ${IMAGE}
+
+if [ "$DATAPATH" == "" ] ; then
+    chroot ${HOST} /usr/bin/docker create --privileged --net=none -ti -h ${MY_HOSTNAME} -e NAME=${NAME} -e MY_IP=${MY_IP} -e VM_IP=${VM_IP} -e YUM_REPO_PREFIX=${YUM_REPO_PREFIX} -e MY_PREFIX=${MY_PREFIX} -e MY_GATEWAY=${MY_GATEWAY} -e VM_VCPU=${VM_VCPU} -e VM_RAM=${VM_RAM} -e VNC_PORT=${VNC_PORT} -e MY_VMNAME=${MY_VMNAME} --name ${NAME} ${IMAGE}
+else
+    chroot ${HOST} /usr/bin/docker create --privileged --net=none -ti -h ${MY_HOSTNAME} -e NAME=${NAME} -e MY_IP=${MY_IP} -e VM_IP=${VM_IP} -e YUM_REPO_PREFIX=${YUM_REPO_PREFIX} -e MY_PREFIX=${MY_PREFIX} -e MY_GATEWAY=${MY_GATEWAY} -e VM_VCPU=${VM_VCPU} -e VM_RAM=${VM_RAM} -e VNC_PORT=${VNC_PORT} -e MY_VMNAME=${MY_VMNAME} --name ${NAME} -v ${DATAPATH}:/data -e IMAGEPATH=/data ${IMAGE}
+fi
 
 # Install systemd unit file for running container
 sed -e "s/TEMPLATE/${NAME}/g" /etc/systemd/system/k2c_template.service > ${HOST}/etc/systemd/system/${NAME}.service

@@ -31,8 +31,23 @@ do
                sleep 5
            fi
       done
+     
+      if [ "$VM_IP" == "" ] ; then
 
-      systemctl start osp-uc-conf.service
+          systemctl start osp-uc-conf.service
+
+          while true ;
+          do
+               if [ -f /home/stack/stackrc ] ; then
+                   break
+               else
+                   sleep 5
+               fi
+          done
+
+      else
+
+      # start KVM in contaner
 
       if [ "$MY_VMNAME" == "" ] ; then
           MY_VMNAME=${NAME}
@@ -145,12 +160,17 @@ do
 
       virsh list --all | grep ${MY_VMNAME}
       if [ $? != 0 ] ; then
-          virt-install --ram $VM_RAM --vcpus $VM_VCPU --os-variant rhel7 --disk path=/var/lib/libvirt/images/${MY_VMNAME}.qcow2,device=disk,bus=virtio,format=qcow2 --import --noautoconsole --graphics vnc,password=redhat,listen=0.0.0.0,port=$VNC_PORT --network network:br0 --network network:br1 --network network:br2 --network network:br3 --name ${MY_VMNAME} --dry-run --print-xml > /root/${MY_VMNAME}.xml
+          virt-install --ram $VM_RAM --vcpus $VM_VCPU --os-variant rhel7 --disk path=${IMAGEPATH}/${MY_VMNAME}.qcow2,device=disk,bus=virtio,format=qcow2 --import --noautoconsole --graphics vnc,password=redhat,listen=0.0.0.0,port=$VNC_PORT --network network:br0 --network network:br1 --network network:br2 --network network:br3 --name ${MY_VMNAME} --dry-run --print-xml > /root/${MY_VMNAME}.xml
           virsh define --file /root/${MY_VMNAME}.xml
       fi
 
       virsh start ${MY_VMNAME}
 
+      # end of start kvm in contaner
+
+      fi
+
+      # contaner had set 
       rm -rf /tmp/111
       exit 0
    else
