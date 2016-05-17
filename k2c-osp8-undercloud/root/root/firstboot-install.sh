@@ -2,13 +2,12 @@
 
 if [ ! -f /root/updated ] ; then
 
-yum -y install keepalived rp-pppoe iptables-services openswan xl2tpd
-yum -y install openstack-utils
-yum -y install python-rdomanager-oscplugin 
-yum -y install facter 
+yum -y install rp-pppoe openswan xl2tpd
+yum -y install sudo python-rdomanager-oscplugin rabbitmq-server facter openstack-utils keepalived iptables-services
 yum -y update
 
 systemctl disable  firewalld.service
+systemctl disable  NetworkManager.service
 systemctl enable iptables.service
 
 ipaddr=$(facter ipaddress_eth0)
@@ -24,6 +23,13 @@ echo "stack ALL=(root) NOPASSWD:ALL" | tee -a /etc/sudoers.d/stack
 chmod 0440 /etc/sudoers.d/stack
 
 sed -i "s/Defaults    requiretty/#Defaults    requiretty/g" /etc/sudoers
+
+cp /usr/lib/python2.7/site-packages/instack_undercloud/undercloud.py /usr/lib/python2.7/site-packages/instack_undercloud/undercloud.py.org
+cp /usr/lib/python2.7/site-packages/instack_undercloud/undercloud.py.tli /usr/lib/python2.7/site-packages/instack_undercloud/undercloud.py
+
+chmod +x /etc/systemd/system/osp-uc-conf.service
+openstack-config --set /etc/systemd/system/osp-uc-conf.service Service TTYPath /dev/tty1
+systemctl enable osp-uc-conf.service
 
 touch /root/updated
 
@@ -45,14 +51,14 @@ sudo -u stack /usr/bin/bash -c  "openstack-config --set ~/undercloud.conf DEFAUL
 
 fi
 
-cat << EOF >> /etc/rc.local
-sleep 60
-sudo -u stack /usr/bin/bash -c  "openstack undercloud install | tee /home/stack/undercloud-install.log "
-sed -i -i "s/sudo -u stack/#sudo -u stack/g"  /etc/rc.local
-EOF
+#cat << EOF >> /etc/rc.local
+#sleep 60
+#sudo -u stack /usr/bin/bash -c  "openstack undercloud install | tee /home/stack/undercloud-install.log "
+#sed -i -i "s/sudo -u stack/#sudo -u stack/g"  /etc/rc.local
+#EOF
 
-chmod -v +x /etc/rc.local
-chmod -v +x /etc/rc.local/etc/rc.local
+#chmod -v +x /etc/rc.local
+#chmod -v +x /etc/rc.local/etc/rc.local
 
 reboot
 

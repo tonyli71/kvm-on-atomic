@@ -58,3 +58,12 @@ ip link set $vethB netns $pid
 ip netns exec $pid ip link set dev $vethB name en3 || true
 ip netns exec $pid ip link set en3 up
 
+vethA="veth`uuidgen | awk -F '-' '{print $1}'`"
+vethB="veth`uuidgen | awk -F '-' '{print $1}'`"
+ip link add $vethA type veth peer name $vethB
+brctl addif atomic1 $vethA
+ip link set $vethA up
+ip link set $vethB netns $pid
+ip netns exec $pid ip link set dev $vethB name em0 || true
+ip netns exec $pid ip link set em0 up
+

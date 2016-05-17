@@ -52,6 +52,20 @@ export DOMAIN
 export HOSTNAME_FQDN
 export HOSTNAME_SHORT
 
+if [ "$BRCTL_SUBNET_PREFIX" == "" ] ; then
+     BRCTL_SUBNET_PREFIX="192.170"
+fi
+
+sudo -u stack /usr/bin/bash -c  "openstack-config --set ~/undercloud.conf DEFAULT local_ip $BRCTL_SUBNET_PREFIX.11.1/16"
+sudo -u stack /usr/bin/bash -c  "openstack-config --set ~/undercloud.conf DEFAULT undercloud_public_vip  $BRCTL_SUBNET_PREFIX.11.10"
+sudo -u stack /usr/bin/bash -c  "openstack-config --set ~/undercloud.conf DEFAULT undercloud_admin_vip $BRCTL_SUBNET_PREFIX.11.11"
+sudo -u stack /usr/bin/bash -c  "openstack-config --set ~/undercloud.conf DEFAULT masquerade_network $BRCTL_SUBNET_PREFIX.0.0/16"
+sudo -u stack /usr/bin/bash -c  "openstack-config --set ~/undercloud.conf DEFAULT dhcp_start $BRCTL_SUBNET_PREFIX.11.20"
+sudo -u stack /usr/bin/bash -c  "openstack-config --set ~/undercloud.conf DEFAULT dhcp_end $BRCTL_SUBNET_PREFIX.11.120"
+sudo -u stack /usr/bin/bash -c  "openstack-config --set ~/undercloud.conf DEFAULT network_cidr $BRCTL_SUBNET_PREFIX.0.0/16"
+sudo -u stack /usr/bin/bash -c  "openstack-config --set ~/undercloud.conf DEFAULT network_gateway $BRCTL_SUBNET_PREFIX.0.1"
+sudo -u stack /usr/bin/bash -c  "openstack-config --set ~/undercloud.conf DEFAULT inspection_iprange  $BRCTL_SUBNET_PREFIX.11.150,$BRCTL_SUBNET_PREFIX.11.180"
+
 nohup /usr/sbin/phys_wait_en0.sh &
 
 if [ -t 0 ] ; then
