@@ -10,10 +10,6 @@ else
     cname="k2c_demo"
 fi
 
-/usr/sbin/modprobe scsi_transport_iscsi
-/usr/sbin/modprobe ipmi_devintf
-/usr/sbin/modprobe openvswitch
-
 mkdir -p /var/run/${cname}
 
 /usr/bin/docker start ${cname}
@@ -22,26 +18,14 @@ sleep 5
 
 pid=`docker inspect -f '{{.State.Pid}}' ${cname}`
 
-if [ "$pid" == "0" ] ; then 
-   exit -1
-fi
-
-if [ -d  /var/run/netns ] ; then 
-    for netns in $(ls /var/run/netns/*); do
-    if [ ! -f $netns ] ; then
-        rm -f $netns
-    fi
-    done
-else
-    mkdir -p /var/run/netns
-fi
+mkdir -p /var/run/netns
 
 ln -fs /proc/$pid/ns/net /var/run/netns/$pid
 
 vethA="veth`uuidgen | awk -F '-' '{print $1}'`"
 vethB="veth`uuidgen | awk -F '-' '{print $1}'`"
 ip link add $vethA type veth peer name $vethB
-brctl addif atomic2 $vethA
+brctl addif atomic1 $vethA
 ip link set $vethA up
 ip link set $vethB netns $pid
 ip netns exec $pid ip link set dev $vethB name en0 || true
@@ -59,7 +43,7 @@ ip netns exec $pid ip link set en1 up
 vethA="veth`uuidgen | awk -F '-' '{print $1}'`"
 vethB="veth`uuidgen | awk -F '-' '{print $1}'`"
 ip link add $vethA type veth peer name $vethB
-brctl addif atomic1 $vethA
+brctl addif atomic2 $vethA
 ip link set $vethA up
 ip link set $vethB netns $pid
 ip netns exec $pid ip link set dev $vethB name en2 || true
@@ -73,13 +57,4 @@ ip link set $vethA up
 ip link set $vethB netns $pid
 ip netns exec $pid ip link set dev $vethB name en3 || true
 ip netns exec $pid ip link set en3 up
-
-vethA="veth`uuidgen | awk -F '-' '{print $1}'`"
-vethB="veth`uuidgen | awk -F '-' '{print $1}'`"
-ip link add $vethA type veth peer name $vethB
-brctl addif atomic2 $vethA
-ip link set $vethA up
-ip link set $vethB netns $pid
-ip netns exec $pid ip link set dev $vethB name em0 || true
-ip netns exec $pid ip link set em0 up
 

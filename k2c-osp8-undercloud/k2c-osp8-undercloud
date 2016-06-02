@@ -29,6 +29,8 @@ if [ ! -f /etc/ssh/ssh_host_dsa_key ] ; then
      ssh-keygen -t ed25519 -q -N "" -f /etc/ssh/ssh_host_ed25519_key
 fi
 
+mkdir -p /var/run/netns
+
 if [ "$MY_IP" != "" ] ; then
     sed -i "s/IPADDR=.*/IPADDR=$MY_IP/g" /etc/sysconfig/network-scripts/ifcfg-br0
 fi
@@ -55,6 +57,17 @@ export HOSTNAME_SHORT
 if [ "$BRCTL_SUBNET_PREFIX" == "" ] ; then
      BRCTL_SUBNET_PREFIX="192.170"
 fi
+
+myloop=$(losetup -a | grep "mydata-${NAME}.disk" | tail -n 1 | awk -F ':' '{ print $1;}')
+if [ "$myloop" != "" ] ; then
+    echo $myloop > /myloop
+    losetup -d $myloop
+fi
+
+mkdir -p /home/stack/.ssh 
+alias cp=cp
+cp -af /root/.ssh/* /home/stack/.ssh/
+chown -R stack:stack /home/stack/.ssh
 
 sudo -u stack /usr/bin/bash -c  "openstack-config --set ~/undercloud.conf DEFAULT local_ip $BRCTL_SUBNET_PREFIX.11.1/16"
 sudo -u stack /usr/bin/bash -c  "openstack-config --set ~/undercloud.conf DEFAULT undercloud_public_vip  $BRCTL_SUBNET_PREFIX.11.10"

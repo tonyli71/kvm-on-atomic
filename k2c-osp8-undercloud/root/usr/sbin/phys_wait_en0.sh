@@ -20,7 +20,58 @@ do
 
       systemctl restart messagebus || true
       systemctl restart sshd || true
-      systemctl restart iptables || true
+      #systemctl restart iptables || true
+      systemctl stop iptables || true
+      
+      if [ -f /etc/yum.repos.d/local.repo ] ; then
+             if [ "$YUM_REPO_PREFIX" != "" ] ; then
+                sed -i "s/\/.*:81/\/\/$YUM_REPO_PREFIX/g" /etc/yum.repos.d/local.repo
+             fi
+             export DIB_YUM_REPO_CONF="/etc/yum.repos.d/local.repo"
+      fi
+
+     
+      if [ "$VM_IP" == "" ] ; then
+
+cat << EOF > /usr/bin/bootif-fix
+#!/usr/bin/env bash
+while true;
+        do find /httpboot/ -type f ! -iname "kernel" ! -iname "ramdisk" ! -iname "*.kernel" ! -iname "*.ramdisk" -exec sed -i 's|{mac|{net0/mac|g' {} +;
+done
+EOF
+chmod a+x /usr/bin/bootif-fix
+cat << EOF > /usr/lib/systemd/system/bootif-fix.service
+[Unit]
+Description=Automated fix for incorrect iPXE BOOFIF
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/bootif-fix
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+          chown -R stack:stack /root/my_templates
+          
+          systemctl start httpd.service
+          systemctl start osp-uc-conf.service
+
+          while true ;
+          do
+               #if [ -f /home/stack/stackrc ] ; then
+               if [ -f /home/stack/done ] ; then
+                   sleep 15
+                   break
+               else
+                   sleep 5
+               fi
+          done
+
+      else
+
+      # start KVM in contaner
+
       systemctl restart libvirtd || true
 
       while true ;
@@ -31,23 +82,6 @@ do
                sleep 5
            fi
       done
-     
-      if [ "$VM_IP" == "" ] ; then
-
-          systemctl start osp-uc-conf.service
-
-          while true ;
-          do
-               if [ -f /home/stack/stackrc ] ; then
-                   break
-               else
-                   sleep 5
-               fi
-          done
-
-      else
-
-      # start KVM in contaner
 
       if [ "$MY_VMNAME" == "" ] ; then
           MY_VMNAME=${NAME}

@@ -29,14 +29,39 @@ if [ "$VM_VCPU" == "" ] ; then
            VM_VCPU=2
 fi
 
+chroot  ${HOST} /usr/sbin/modprobe scsi_transport_iscsi
+chroot  ${HOST} /usr/sbin/modprobe ipmi_devintf
+chroot  ${HOST} /usr/sbin/modprobe openvswitch
 
 # Create Container
+cmd="chroot ${HOST} /usr/bin/docker create --privileged --net=none -ti -h ${MY_HOSTNAME} -e NAME=${NAME} -e MY_IP=${MY_IP} -e VM_IP=${VM_IP} -e YUM_REPO_PREFIX=${YUM_REPO_PREFIX} -e MY_PREFIX=${MY_PREFIX} -e MY_GATEWAY=${MY_GATEWAY} -e VM_VCPU=${VM_VCPU} -e VM_RAM=${VM_RAM} -e VNC_PORT=${VNC_PORT} -e MY_VMNAME=${MY_VMNAME} -e BRCTL_SUBNET_PREFIX=${BRCTL_SUBNET_PREFIX} -v /:/host -v /etc/localtime:/etc/localtime -v /etc/machine-id:/etc/machine-id --device=/dev/loop-control:/dev/loop-control:rwm --ulimit nofile=65536:65536 --ulimit nproc=2048:4096"
 
 if [ "$DATAPATH" == "" ] ; then
-    chroot ${HOST} /usr/bin/docker create --privileged --net=none -ti -h ${MY_HOSTNAME} -e NAME=${NAME} -e MY_IP=${MY_IP} -e VM_IP=${VM_IP} -e YUM_REPO_PREFIX=${YUM_REPO_PREFIX} -e MY_PREFIX=${MY_PREFIX} -e MY_GATEWAY=${MY_GATEWAY} -e VM_VCPU=${VM_VCPU} -e VM_RAM=${VM_RAM} -e VNC_PORT=${VNC_PORT} -e MY_VMNAME=${MY_VMNAME} --name ${NAME} ${IMAGE}
+    if [ ! -f /tmp/mydata-${NAME}.disk ] ; then
+        chroot ${HOST} dd if=/dev/zero of=/tmp/mydata-${NAME}.disk bs=1MiB count=10
+        chroot ${HOST} losetup --find --show /tmp/mydata-${NAME}.disk
+    fi
 else
-    chroot ${HOST} /usr/bin/docker create --privileged --net=none -ti -h ${MY_HOSTNAME} -e NAME=${NAME} -e MY_IP=${MY_IP} -e VM_IP=${VM_IP} -e YUM_REPO_PREFIX=${YUM_REPO_PREFIX} -e MY_PREFIX=${MY_PREFIX} -e MY_GATEWAY=${MY_GATEWAY} -e VM_VCPU=${VM_VCPU} -e VM_RAM=${VM_RAM} -e VNC_PORT=${VNC_PORT} -e MY_VMNAME=${MY_VMNAME} --name ${NAME} -v ${DATAPATH}:/data -e IMAGEPATH=/data ${IMAGE}
+    if [ ! -f $DATAPATH/mydata-${NAME}.disk ] ; then
+        chroot ${HOST} dd if=/dev/zero of=$DATAPATH/mydata-${NAME}.disk bs=1MiB count=10
+        chroot ${HOST} losetup --find --show $DATAPATH/mydata-${NAME}.disk
+    fi
+    cmd="$cmd -v ${DATAPATH}:/data -e IMAGEPATH=/data"
 fi
+
+if [ "$MYDBPATH" != "" ] ; then
+    cmd="$cmd -v ${MYDBPATH}:/var/lib/mysql"
+fi
+
+if [ "$GLANCEPATH" != "" ] ; then
+    cmd="$cmd -v ${GLANCEPATH}:/var/lib/glance"
+fi
+
+if [ "$SWIFTPATH" != "" ] ; then
+    cmd="$cmd -v ${SWIFTPATH}:/etc/swift"
+fi
+
+cmd="$cmd --name ${NAME} ${IMAGE}";$cmd
 
 # Install systemd unit file for running container
 sed -e "s/TEMPLATE/${NAME}/g" /etc/systemd/system/k2c_template.service > ${HOST}/etc/systemd/system/${NAME}.service
@@ -52,6 +77,6 @@ else
    echo "Usage: before install you need export following Env"
    echo "export MY_IP=xxx.xxx.xxx.xxx"
    echo "export VM_IP=xxx.xxx.xxx.xxx"
-   echo "atomic install --name <contaner name> k2c_demo"
+   echo "atomic install --name <container name> k2c_demo"
 
 fi

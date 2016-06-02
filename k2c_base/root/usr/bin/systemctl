@@ -97,7 +97,28 @@ if (@ARGV == 1) {
 }
 
 if (@ARGV != 2) {
-	die "Usage: $0 (start|stop|status|...) (service|target|socket thing)\n";
+        if ($ARGV[0] eq 'list-unit-files') {
+            if ( -d $RUNNING_DIR) {
+                local * RUNNING;
+                opendir RUNNING, $RUNNING_DIR;
+                my %services;
+                while (defined(my $f = readdir RUNNING)) {
+                        next if $f eq '.' or $f eq '..';
+                        my $modified = (stat "$RUNNING_DIR/$f")[9];
+                        if (defined $modified) {
+                                my $trimmed = $f;
+                                $trimmed =~ s/\..+$//;
+                                $services{$trimmed} = $modified;
+                        }
+                }
+                close RUNNING;
+                #for my $s (sort { $services{$b} <=> $services{$a} or $a cmp $b } keys %services) {
+                #        system $0, 'stop', $s;
+                #}
+            }
+        } else {
+	        die "Usage: $0 (start|stop|status|...) (service|target|socket thing)\nYou calling is: @ARGV ";
+        }
 }
 
 my ($COMMAND, $SERVICE) = @ARGV;
