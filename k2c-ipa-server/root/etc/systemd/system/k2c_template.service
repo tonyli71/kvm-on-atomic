@@ -1,0 +1,13 @@
+[Unit]
+Description=Server for TEMPLATE
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/bash -c "/var/opt/run_TEMPLATE TEMPLATE"
+ExecStop=/usr/bin/docker stop TEMPLATE
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+
