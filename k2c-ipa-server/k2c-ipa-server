@@ -37,6 +37,7 @@ function update_server_ip_address () {
             /bin/systemctl stop  ipa.service
             /bin/systemctl start ipa.service
         #fi
+        /bin/bash
         kinit -k
         (
                 echo "server 127.0.0.1"
@@ -55,7 +56,6 @@ function update_server_ip_address () {
         #        echo "quit"
         #) | nsupdate -g
         kdestroy -A
-        /bin/bash
 }
 
 function upgrade_server () {
