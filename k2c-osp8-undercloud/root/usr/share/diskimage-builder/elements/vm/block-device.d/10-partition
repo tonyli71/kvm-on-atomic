@@ -1,0 +1,83 @@
+#!/bin/bash
+
+if [ ${DIB_DEBUG_TRACE:-0} -gt 0 ]; then
+    set -x
+fi
+set -eu
+set -o pipefail
+
+if [ -f /myloop ] ; then
+     MYLOOPDEV=$(cat /myloop)
+else
+     MYLOOPDEV=$(sudo losetup -f)
+fi
+
+source $_LIB/die
+[ -n "$IMAGE_BLOCK_DEVICE" ] || die "Image block device not set"
+
+# Create 2 partitions for PPC, one for PReP boot and other for root
+if [[ "$ARCH" =~ "ppc" ]] ; then
+    sudo sfdisk --force $IMAGE_BLOCK_DEVICE << EOF
+0,8,41 *
+,,L
+;
+EOF
+else
+    # sfdisk changed around 2.26 and was largely rewritten.  The old
+    # version defaults to c/h/s and interprets arguments as cylinders.
+    # The new version defaults to sectors.
+    #
+    # Luckily, the old version has a -uS flag (ignored by the new
+    # version) to interpret arguments as sectors.  However, it
+    # incorrectly calculates the c/h/s offset when finding free space,
+    # and gets upset [1], requiring the use of --force.
+    #
+    # TODO: switch this to parted, or something saner (is there such a
+    # thing when talking about partitioning?)
+    #
+    # The below command creates a partition that starts at 1MiB --
+    # which is the standard place to start a partition these days --
+    # and fills up the disk.  The zeros are to ignore the other 3
+    # primary partitions (probably not needed, but left for safety).
+    #
+    # [1] https://bugs.launchpad.net/ubuntu/+source/util-linux/+bug/1481158
+    sudo sfdisk -uS --force $IMAGE_BLOCK_DEVICE << EOF
+2048 + L *
+0 0;
+0 0;
+0 0;
+EOF
+fi
+
+sudo partprobe $IMAGE_BLOCK_DEVICE
+
+# To ensure no race conditions exist from calling partprobe
+sudo udevadm settle
+
+# If the partition isn't under /dev/loop*p1, create it with kpartx
+DM=
+if [ ! -e "${IMAGE_BLOCK_DEVICE}p1" ]; then
+    DM=${IMAGE_BLOCK_DEVICE/#\/dev/\/dev\/mapper}
+    # If running inside Docker, make our nodes manually, because udev will not be working.
+    if [ -f /.dockerenv ]; then
+        # kpartx cannot run in sync mode in docker.
+        sudo losetup $MYLOOPDEV $TMP_IMAGE_PATH
+        sudo kpartx -av $MYLOOPDEV
+        sudo dmsetup --noudevsync mknodes
+    else
+        sudo losetup $MYLOOPDEV $TMP_IMAGE_PATH
+        sudo kpartx -asv $MYLOOPDEV
+    fi
+elif [[ "$ARCH" =~ "ppc" ]]; then
+    sudo losetup $MYLOOPDEV $TMP_IMAGE_PATH
+    sudo kpartx -asv $MYLOOPDEV
+fi
+
+if [ -n "$DM" ]; then
+    echo "IMAGE_BLOCK_DEVICE=${DM}p1"
+elif [[ "$ARCH" =~ "ppc" ]]; then
+    DM=${IMAGE_BLOCK_DEVICE/#\/dev/\/dev\/mapper}
+    echo "IMAGE_BLOCK_DEVICE=${DM}p2"
+else
+    echo "IMAGE_BLOCK_DEVICE=${IMAGE_BLOCK_DEVICE}p1"
+fi

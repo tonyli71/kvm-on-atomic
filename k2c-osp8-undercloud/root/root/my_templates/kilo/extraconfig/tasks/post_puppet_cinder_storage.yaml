@@ -1,0 +1,24 @@
+heat_template_version: 2015-04-30
+description: 'Post-Puppet Config for Cinder Nodes'
+
+parameters:
+  servers:
+    type: json
+  update_identifier:
+    type: string
+
+resources:
+
+  CinderPostPuppetYumUpdateConfig:
+    type: OS::Heat::SoftwareConfig
+    properties:
+      group: script
+      config: {get_file: yum_update_post.sh}
+
+  CinderPostPuppetYumUpdateDeployment:
+    type: OS::Heat::SoftwareDeployments
+    properties:
+      servers:  {get_param: servers}
+      config: {get_resource: CinderPostPuppetYumUpdateConfig}
+      input_values:
+        update_identifier: {get_param: update_identifier}

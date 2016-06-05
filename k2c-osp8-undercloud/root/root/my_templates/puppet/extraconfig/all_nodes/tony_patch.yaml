@@ -1,0 +1,52 @@
+heat_template_version: 2015-04-30
+
+description: Configure hieradata for NTP correct configuration
+
+parameters:
+  # Parameters passed from the parent template
+  servers:
+    type: json
+    description: servers.
+
+  # extra parameters passed via parameter_defaults
+  ntp_servers:
+    type: string
+    description: NTP servers.
+    default: ''
+
+
+resources:
+  # First 
+  TonyExtraConfig:
+    type: OS::Heat::SoftwareConfig
+    properties:
+      group: script
+      inputs:
+          - name: _ntp_servers
+      config:
+          str_replace:
+              template: |
+                        #!/usr/bin/bash
+                        #server 127.127.1.0 # local clock address
+                        #fudge  127.127.1.0 stratum 10
+                        ntp_servers="192.170.0.99 192.170.0.100 192.170.0.101 192.170.0.102"
+                        if [ "$ntp_servers" != "" ] ; then
+                            grep -v "^server" /etc/ntp.conf > /tmp/ntp.conf
+                            for svr in $ntp_servers ; do
+                                echo "server $svr iburst" >> /tmp/ntp.conf
+                            done 
+                            cat /tmp/ntp.conf > /etc/ntp.conf
+                            systemctl restart ntpd.service
+                        fi
+
+              params:
+                        _ntp_servers: { get_param: ntp_servers }
+ 
+  TonyExtraDeployments:
+    type: OS::Heat::SoftwareDeployments
+    properties:
+      config: {get_resource: TonyExtraConfig}
+      servers:  {get_param: servers}
+      actions: ['CREATE','UPDATE']
+
+outputs:

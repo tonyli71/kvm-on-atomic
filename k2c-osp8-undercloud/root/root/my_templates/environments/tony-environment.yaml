@@ -1,0 +1,6 @@
+resource_registry:
+  OS::TripleO::NodeExtraConfigPost: ../puppet/extraconfig/all_nodes/tony_patch.yaml
+
+parameter_defaults:
+     ntp_servers: '192.170.0.99 192.170.0.100 192.170.0.101 192.170.0.102'
+

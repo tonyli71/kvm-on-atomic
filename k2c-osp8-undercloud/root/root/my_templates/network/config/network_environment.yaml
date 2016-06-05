@@ -1,0 +1,55 @@
+resource_registry:
+  #OS::TripleO::BlockStorage::Net::SoftwareConfig: /home/stack/templates/my-overcloud/network/config/multi-vlans/cinder--storage.yaml
+  OS::TripleO::Compute::Net::SoftwareConfig: bond-with-vlans/compute.yaml
+  OS::TripleO::Controller::Net::SoftwareConfig: bond-with-vlans/controller.yaml
+  #OS::TripleO::ObjectStorage::Net::SoftwareConfig: /home/stack/templates/my-overcloud/network/config/multi-vlans/swift-storage.yaml
+  OS::TripleO::CephStorage::Net::SoftwareConfig: bond-with-vlans/ceph-storage.yaml
+
+parameter_defaults:
+  ControllerHostnameFormat: 'overcloud-controller-node%index%'
+  ComputeHostnameFormat: 'overcloud-compute-node%index%'
+  CephStorageHostnameFormat: 'overcloud-ceph-node%index%'
+
+  # External Networking Access - Public API Access
+  ExternalNetCidr: 192.168.194.0/24
+  ExternalAllocationPools: [{'start': '192.168.194.10', 'end': '192.168.194.13'}]
+  ExternalInterfaceDefaultRoute: 192.168.194.1
+  ExternalNetworkVlanID: 750
+
+  # Internal API used for private OpenStack Traffic
+  InternalApiNetCidr: 172.17.1.0/16
+  InternalApiAllocationPools: [{'start': '172.17.1.10', 'end': '172.17.1.200'}]
+  InternalApiNetworkVlanID: 1501
+
+  # Tenant Network Traffic - will be used for VXLAN over VLAN
+  TenantNetCidr: 172.18.1.0/16
+  TenantAllocationPools: [{'start': '172.18.1.10', 'end': '172.18.1.200'}]
+  TenantNetworkVlanID: 1502
+
+  # Public Storage Access - e.g. Nova/Glance <--> Ceph
+  StorageNetCidr: 172.19.1.0/16
+  StorageAllocationPools: [{'start': '172.19.1.10', 'end': '172.19.1.200'}]
+  StorageNetworkVlanID: 1503 
+  
+  # Private Storage Access - i.e. Ceph background cluster/replication
+  StorageMgmtNetCidr: 172.20.1.0/16
+  StorageMgmtAllocationPools: [{'start': '172.20.1.10', 'end': '172.20.1.200'}]
+  StorageMgmtNetworkVlanID: 1504
+
+  EC2MetadataIp: '192.170.0.110'
+  ControlPlaneDefaultRoute: '192.170.0.1'
+  ControlPlaneSubnetCidr: '16'
+  DnsServers: ["8.8.8.8","8.8.4.4"]
+
+  #InternalApiNetworkVlanID: 100
+  #TenantNetworkVlanID: 200
+  #StorageNetworkVlanID: 300
+  #StorageMgmtNetworkVlanID: 400
+
+  BondInterfaceOvsOptions: "bond_mod=active-backup other_config:bond-detect-mode=miimon other_config:bond-miimon-interval=100"
+  BondInterfaceLinuxOptions: "mode=4 miimon=100"
+  #BridgeSTP: "br-set-external-id br-tenantplane  bridge-id br-tenantplane stp_enable=true"
+  NeutronExternalNetworkBridge: "''"
+
+  ControllerEnableSwiftStorage: false
+  Debug: false

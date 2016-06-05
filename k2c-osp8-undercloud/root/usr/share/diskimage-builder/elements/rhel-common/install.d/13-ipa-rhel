@@ -1,0 +1,14 @@
+#!/bin/bash
+# Install ipa if it is available
+# dib-lint: disable=sete
+
+if [ "${DIB_DEBUG_TRACE:-1}" -gt 0 ]; then
+    set -x
+fi
+set -u
+set -o pipefail
+
+HAS_PACKAGE=$(yum list | grep ^ipa)
+if [ -n "$HAS_PACKAGE" ]; then
+    install-packages ipa-server
+fi

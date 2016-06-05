@@ -1,0 +1,18 @@
+#!/bin/bash
+# Install ceph-mon if it is available
+# dib-lint: disable=sete
+
+if [ "${DIB_DEBUG_TRACE:-1}" -gt 0 ]; then
+    set -x
+fi
+set -u
+set -o pipefail
+
+HAS_PACKAGE=$(yum list | grep ceph)
+if [ -n "$HAS_PACKAGE" ]; then
+    install-packages ceph
+    install-packages ceph-mon
+    install-packages ceph-osd
+    install-packages ceph-radosgw
+    install-packages librbd1
+fi

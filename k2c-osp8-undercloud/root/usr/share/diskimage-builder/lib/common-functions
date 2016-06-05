@@ -1,0 +1,315 @@
+#!/bin/bash
+# Copyright 2012 Hewlett-Packard Development Company, L.P.
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+function tmpfs_check() {
+  local echo_message=${1:-1}
+  [ "$DIB_NO_TMPFS" == "0" ] || return 1
+  [ -r /proc/meminfo ] || return 1
+  total_kB=$(awk '/^MemTotal/ { print $2 }' /proc/meminfo)
+  # tmpfs uses by default 50% of the available RAM, so the RAM should be at least
+  # the double of the minimum tmpfs size required
+  RAM_NEEDED=$(($DIB_MIN_TMPFS * 2))
+  [ $total_kB -lt $(($RAM_NEEDED*1024*1024)) ] || return 0
+  if [ $echo_message == '1' ]; then
+    echo "WARNING: Not enough RAM to use tmpfs for build. Using ${TMP_DIR:-/tmp}. ($total_kB < ${RAM_NEEDED}G)"
+  fi
+  return 1
+}
+
+function mk_build_dir () {
+  TMP_BUILD_DIR=$(mktemp -t -d --tmpdir=${TMP_DIR:-/tmp} image.XXXXXXXX)
+  TMP_IMAGE_DIR=$(mktemp -t -d --tmpdir=${TMP_DIR:-/tmp} image.XXXXXXXX)
+  [ $? -eq 0 ] || die "Failed to create tmp directory"
+  export TMP_BUILD_DIR
+  if tmpfs_check ; then
+    sudo mount -t tmpfs tmpfs $TMP_BUILD_DIR
+    sudo mount -t tmpfs tmpfs $TMP_IMAGE_DIR
+    sudo chown $(id -u):$(id -g) $TMP_BUILD_DIR $TMP_IMAGE_DIR
+  fi
+  trap trap_cleanup EXIT
+  echo Building in $TMP_BUILD_DIR
+  export TMP_IMAGE_PATH=$TMP_IMAGE_DIR/image.raw
+  export OUT_IMAGE_PATH=$TMP_IMAGE_PATH
+  export TMP_HOOKS_PATH=$TMP_BUILD_DIR/hooks
+}
+
+function finish_image () {
+    if [ -f $1 -a ${OVERWRITE_OLD_IMAGE:-0} -eq 0 ]; then
+      old_image="${1%.*}"-$(date +%Y.%m.%d-%H.%M.%S).${1##*.}
+      echo "Old image found. Renaming it to $old_image"
+      mv "$1" "$old_image"
+    fi
+
+    mv $OUT_IMAGE_PATH $1
+    echo "Image file $1 created..."
+}
+
+function save_image () {
+    finish_image $1
+}
+
+function copy_hooks_not_overwrite () {
+    _DIR=$(basename $1)
+    test -d $TMP_HOOKS_PATH/$_DIR || mkdir $TMP_HOOKS_PATH/$_DIR
+    for _HOOK in $(ls $1); do
+      if [ ! -f $TMP_HOOKS_PATH/$_DIR/$_HOOK ]; then
+        cp -t $TMP_HOOKS_PATH/$_DIR -a $1/$_HOOK
+      else
+        echo "There is a duplicated hook in your elements: $_ELEMENT/$_DIR/$_HOOK"
+        exit 1
+      fi
+    done
+}
+
+function generate_hooks () {
+  mkdir -p $TMP_HOOKS_PATH
+  for _ELEMENT in $IMAGE_ELEMENT ; do
+    for dir in ${ELEMENTS_PATH//:/ } ; do
+      [ -d $dir/$_ELEMENT ] || continue
+      for _DIR in $(find $dir/$_ELEMENT -follow -mindepth 1 -maxdepth 1 -type d -not -name tests); do
+        copy_hooks_not_overwrite $_DIR
+      done
+      for _FILE in $(find $dir/$_ELEMENT -follow -maxdepth 1 -type f); do
+        cp -t $TMP_HOOKS_PATH -a $_FILE
+      done
+      break
+    done
+  done
+}
+
+# Call the supplied break-in routine if the named point is listed in the break
+# list.
+# $1 the break point.
+# $2.. what to call if a break is needed
+function check_break () {
+  if echo "${break:-}" | egrep -e "(,|^)$1(,|$)" -q; then
+    echo "Starting debug shell. Exit to resume building." >&2
+    echo At stage $1 >&2
+    shift
+    "$@"
+    echo "Resuming" >&2
+  fi
+}
+
+# Check that a real element has been chosen (prevents foot-guns)
+function check_element () {
+  [ -d $TMP_HOOKS_PATH ] || generate_hooks
+}
+
+# Run a hook, looking for a regex in its stdout, and eval the matched lines.
+# $1 is the hook to run
+# $2 is the regex to look for
+function eval_run_d () {
+  local TEMP=`run_d $1`
+  echo "$TEMP"
+  if [ `echo "$TEMP" | grep -s "$2"` ]; then
+      TEMP=`echo "$TEMP" | grep "$2"`
+      eval "$TEMP"
+  fi
+}
+
+# Usage: map_nbd $image
+# Returns nbd device path
+function map_nbd {
+    (lsmod | grep '^nbd ' >/dev/null) || sudo modprobe nbd max_part=16
+
+    if [[ $(qemu-nbd --help | grep cache) == *writeback* ]] ; then
+        CACHE="--cache=writeback"
+    else
+        echo "Warning: qemu-nbd without --cache=writeback is /slow/."
+        CACHE=""
+    fi
+    NBD_DEV=
+    for i in `seq 0 15`; do
+        if [ ! -e /sys/block/nbd$i/pid ]; then
+            NBD_DEV=/dev/nbd$i
+            # Connect to nbd and wait till it is ready
+            sudo qemu-nbd -c $NBD_DEV $CACHE $1
+            if ! timeout 60 sh -c "while ! [ -e /sys/block/nbd$i/pid ]; do sleep 1; done"; then
+                echo "Couldn't connect $NBD_DEV"
+                exit 1
+            fi
+            break
+        fi
+    done
+    if [ -z "$NBD_DEV" ]; then
+        echo "No free NBD slots"
+        exit 1
+    fi
+}
+
+# Delete and unmount the working dir used in extracting kernel/initrd
+function unmount_qcow_image () {
+    sudo umount $WORK_DIR || true
+    sudo qemu-nbd -d $NBD_DEV >/dev/null || true
+    sudo rm -rf $WORK_DIR
+
+    trap - SIGHUP SIGINT SIGTERM EXIT
+}
+
+function mount_qcow_image() {
+    trap unmount_qcow_image SIGHUP SIGINT SIGTERM EXIT
+
+    WORK_DIR=$(mktemp -d)
+    map_nbd $1
+    if [ -e "${NBD_DEV}p1" ]; then
+       sudo mount ${NBD_DEV}p1 $WORK_DIR
+    else
+       sudo mount ${NBD_DEV} $WORK_DIR
+    fi
+}
+
+function cleanup_build_dir () {
+    if ! timeout 5  sh -c " while ! sudo rm -rf $TMP_BUILD_DIR/built; do sleep 1; done"; then
+        echo "ERROR: unable to cleanly remove $TMP_BUILD_DIR/built"
+        exit 1
+    fi
+    sudo rm -rf $TMP_BUILD_DIR/mnt
+    if tmpfs_check 0; then
+        sudo umount -f $TMP_BUILD_DIR || true
+    fi
+    rm -rf --one-file-system $TMP_BUILD_DIR
+}
+
+function cleanup_image_dir () {
+    if tmpfs_check 0; then
+        sudo umount -f $TMP_IMAGE_DIR || true
+    fi
+    rm -rf --one-file-system $TMP_IMAGE_DIR
+}
+
+# Run a directory of hooks outside the target (that is, no chrooting).
+function run_d() {
+    check_element
+    check_break before-$1 bash
+    if [ -d ${TMP_HOOKS_PATH}/$1.d ] ; then
+      dib-run-parts ${TMP_HOOKS_PATH}/$1.d
+    fi
+    check_break after-$1 bash
+}
+
+function detach_loopback() {
+    local loopdev=$1
+
+    if [ -f /myloop ] ; then
+         MYLOOPDEV=$(cat /myloop)
+    else
+         MYLOOPDEV=$(sudo losetup -f)
+    fi
+
+    # Remove the map if it exists
+    # If setup on a rhel or derivative the map was created with kpartx not losetup
+    # and subsequently needs to be removed.
+    loopdev_name=$(echo $loopdev | sed 's/\/dev\///g')
+
+    if sudo dmsetup ls | grep $loopdev_name; then
+        mapper_name=$(sudo dmsetup ls | grep $loopdev_name | awk '{ print $1 }')
+        sudo dmsetup --noudevsync remove $mapper_name
+    fi
+
+    # loopback dev may be tied up a bit by udev events triggered by partition events
+    for try in $(seq 10 -1 1) ; do
+        #if ! sudo losetup $loopdev || sudo losetup -d $loopdev ; then
+        used=$(sudo losetup -a | grep $MYLOOPDEV)
+        if [ "${used}" != "" ] ; then
+            sudo losetup -d $MYLOOPDEV || true
+            return 0
+        fi
+        echo $loopdev may be busy, sleeping up to $try more seconds...
+        sleep 1
+    done
+    echo Gave up trying to detach $loopdev
+    return 1
+}
+
+function arg_to_elements() {
+  for arg do IMAGE_ELEMENT="$IMAGE_ELEMENT $arg" ; done
+
+  if [ "$SKIP_BASE" != "1" ]; then
+    IMAGE_ELEMENT="base $IMAGE_ELEMENT"
+  fi
+  if [ "$IS_RAMDISK" == "1" ]; then
+    IMAGE_ELEMENT="$RAMDISK_ELEMENT $IMAGE_ELEMENT"
+  fi
+  echo "Building elements: $IMAGE_ELEMENT"
+
+  IMAGE_ELEMENT=$($SCRIPT_HOME/element-info $IMAGE_ELEMENT)
+  export IMAGE_ELEMENT
+
+  echo "Expanded element dependencies to: $IMAGE_ELEMENT"
+}
+
+function create_base () {
+    mkdir $TMP_BUILD_DIR/mnt
+    export TMP_MOUNT_PATH=$TMP_BUILD_DIR/mnt
+    # Copy data in to the root.
+    TARGET_ROOT=$TMP_MOUNT_PATH run_d root
+    if [ -z "$(ls $TMP_MOUNT_PATH | grep -v '^lost+found\|tmp$')" ] ; then
+        # No root element copied in. Note the test above allows
+        # root.d elements to put things in /tmp
+        echo "Failed to deploy the root element."
+        exit 1
+    fi
+
+    # Configure Image
+    # Setup resolv.conf so we can chroot to install some packages
+    if [ -L $TMP_MOUNT_PATH/etc/resolv.conf ] || [ -f $TMP_MOUNT_PATH/etc/resolv.conf ] ; then
+        sudo mv $TMP_MOUNT_PATH/etc/resolv.conf $TMP_MOUNT_PATH/etc/resolv.conf.ORIG
+    fi
+
+    # Recreate resolv.conf
+    sudo touch $TMP_MOUNT_PATH/etc/resolv.conf
+    sudo chmod 777 $TMP_MOUNT_PATH/etc/resolv.conf
+    # use system configured resolv.conf if available to support internal proxy resolving
+    if [ -e /etc/resolv.conf ]; then
+        cat /etc/resolv.conf > $TMP_MOUNT_PATH/etc/resolv.conf
+    else
+        echo nameserver 8.8.8.8 > $TMP_MOUNT_PATH/etc/resolv.conf
+    fi
+    mount_proc_dev_sys
+}
+
+function mount_proc_dev_sys () {
+    # supporting kernel file systems
+    sudo mount -t proc none $TMP_MOUNT_PATH/proc
+    sudo mount --bind /dev $TMP_MOUNT_PATH/dev
+    sudo mount --bind /dev/pts $TMP_MOUNT_PATH/dev/pts
+    sudo mount -t sysfs none $TMP_MOUNT_PATH/sys
+}
+
+# Recursively unmount directories under a given directory DIR
+# usage:
+#  unmount_dir DIR
+function unmount_dir {
+    local dir="$1"
+    local real_dir
+    local mnts
+
+    if [ ! -d $dir ]; then
+        echo "*** $dir is not a directory"
+        return 1
+    fi
+
+    # get rid of any symlink elements in the incoming path, because
+    # /proc/mounts is the real path
+    real_dir=$(readlink -e $dir)
+
+    mnts=$(awk '{print $2}' < /proc/mounts | grep "^$real_dir" | sort -r)
+    for m in $mnts; do
+        echo "Unmount $m"
+        sudo umount -fl $m || true
+    done
+}

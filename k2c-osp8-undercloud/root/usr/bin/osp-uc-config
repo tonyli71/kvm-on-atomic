@@ -1,0 +1,244 @@
+#! /usr/bin/bash
+
+if [ ! -f /home/stack/stackrc ] ; then 
+    openstack undercloud install
+    if [ ! -f /home/stack/stackrc ] ; then 
+       openstack undercloud install
+    fi
+fi
+
+if [ -f /home/stack/stackrc ] ; then
+    sudo ifdown br0
+    sudo ifdown br1
+    sudo ifdown br2
+    sudo ifdown br3
+    # we run undercloud twice to make sure it configure correctly
+    # openstack undercloud install
+    if [ ! -f /home/stack/image_uploaded ] ; then
+        export NODE_DIST=rhel7    
+        export DIB_LOCAL_IMAGE=/var/lib/libvirt/images/rhel-guest.qcow2
+        export USE_DELOREAN_TRUNK=0
+        export RHOS=1
+        export DIB_YUM_REPO_CONF="/etc/yum.repos.d/local.repo"
+        source ~/stackrc
+        cd ~
+        if [ -f /myloop ] ; then
+            sudo losetup -d $(cat /myloop) || true
+        fi
+
+        #cp /root/images/* .
+
+        if [ ! -f /home/stack/overcloud-full.qcow2 ] ; then
+           time openstack overcloud image build --all 2>&1 | tee openstack_image_build.log || true
+           if [ ! -f /home/stack/overcloud-full.qcow2 ] ; then
+               time openstack overcloud image build --all 2>&1 | tee openstack_image_build.log
+           fi
+        fi
+
+        if [ ! -f /home/stack/ironic-python-agent.initramfs ] ; then
+           time openstack overcloud image build --all 2>&1 | tee openstack_image_build.log || true
+           if [ ! -f /home/stack/ironic-python-agent.initramfs ] ; then
+               time openstack overcloud image build --all 2>&1 | tee openstack_image_build.log
+           fi
+        fi
+
+
+        if [ -f /home/stack/ironic-python-agent.initramfs ] ; then
+            openstack overcloud image upload
+            openstack image list
+        fi
+
+        img_count=$(openstack image list | awk '{print $2}' | grep -v ID | grep -v ^$ | wc -l)
+        if [ "$img_count" == "5" ] ; then
+            touch /home/stack/image_uploaded
+        fi
+    fi
+
+
+if [ ! -f /home/stack/done ] ; then
+            if [ -f /data/instackenv.json ] ; then
+
+                cd ~
+                source ~/stackrc
+
+                while true ;
+                do
+                   heat stack-list | grep overcloud
+                   if [ $? == 0 ] ; then
+                      heat stack-delete -y overcloud || true
+                      sleep 60
+                   else
+                      break
+                   fi
+                done
+
+                declare -i node_count
+                node_count=$(ironic node-list | awk '{print $2}' | grep -v ID | grep -v ^$ | wc -l)
+                (( node_count = node_count + 0 ))
+                if (( node_count >= 8 )) ; then
+                     for i in $(ironic node-list | grep -v UUID | awk ' { print $2 } '); do ironic node-delete $i; done
+                     sleep 5
+                fi
+
+                openstack baremetal import --json /data/instackenv.json
+                openstack baremetal configure boot
+                ironic node-list
+                #sudo systemctl start bootif-fix
+                # for i in $(ironic node-list | grep -v UUID | awk ' { print $2 } '); do ironic node-set-maintenance $i false; done
+                openstack baremetal introspection bulk start
+
+                export OS_PASSWORD=$(sudo hiera ironic::api::admin_password)
+                export OS_USERNAME="ironic"
+                export OS_TENANT_NAME="service"
+                swiftBucket="ironic-inspector"
+
+                directory="swift-${swiftBucket}"
+                mkdir -p ~/$directory
+                rm -rf ~/$directory/* || true
+
+                cd ~/$directory
+                for file in $(swift list $swiftBucket); do
+                    swift download $swiftBucket $file >/dev/null
+                    sed -i 's/],/]\n/g' $file
+                done
+
+                cd ~
+                source ~/stackrc
+                #for flavor in $(openstack flavor list | grep control |  awk ' { print $2 } ') ; do
+                #    nova flavor-delete $flavor 
+                #done 
+
+                nova flavor-delete baremetal
+                openstack flavor create --id auto --ram 4096 --disk 40 --vcpus 1 baremetal
+                openstack flavor set --property "cpu_arch"="x86_64" \
+                          --property "capabilities:boot_option"="local" baremetal
+                nova flavor-delete control 
+                openstack flavor create --id auto --ram 4096 --disk 40 --vcpus 1 control
+                openstack flavor set --property "cpu_arch"="x86_64" \
+                          --property "capabilities:boot_option"="local" \
+                          --property "capabilities:profile"="control" control
+                nova flavor-delete compute
+                openstack flavor create --id auto --ram 4096 --disk 40 --vcpus 1 compute
+                openstack flavor set --property "cpu_arch"="x86_64" \
+                          --property "capabilities:boot_option"="local" \
+                          --property "capabilities:profile"="compute" compute
+                nova flavor-delete ceph-storage
+                openstack flavor create --id auto --ram 4096 --disk 40 --vcpus 1 ceph-storage
+                openstack flavor set --property "cpu_arch"="x86_64" \
+                          --property "capabilities:boot_option"="local" \
+                          --property "capabilities:profile"="ceph-storage" ceph-storage
+
+                openstack flavor list
+
+                for node in $(ironic node-list | grep overcloud-controller | awk ' { print $2 } ') ; do 
+                    ironic node-update $node add properties/capabilities='profile:control,boot_option:local'
+                done
+                for node in $(ironic node-list | grep overcloud-compute | awk ' { print $2 } ') ; do 
+                    ironic node-update $node add properties/capabilities='profile:compute,boot_option:local'
+                done
+                for node in $(ironic node-list | grep overcloud-ceph | awk ' { print $2 } ') ; do 
+                    ironic node-update $node add properties/capabilities='profile:ceph-storage,boot_option:local'
+                done
+
+                for node in $(ironic node-list | grep overcloud-controller | awk ' { print $2 } ') ; do
+                    ironic node-update $node replace properties/capabilities='profile:control,boot_option:local'
+                done
+                for node in $(ironic node-list | grep overcloud-compute | awk ' { print $2 } ') ; do
+                    ironic node-update $node replace properties/capabilities='profile:compute,boot_option:local'
+                done
+                for node in $(ironic node-list | grep overcloud-ceph | awk ' { print $2 } ') ; do
+                    ironic node-update $node replace properties/capabilities='profile:ceph-storage,boot_option:local'
+                done
+
+                for i in $(ironic node-list | grep -v UUID | awk '{print $2;}' \
+                     | sed -e /^$/d); do ironic node-show $i | grep -A2 properties; \
+                echo "======="; done;
+
+                cd ~
+                source ~/stackrc
+                net_id=$(neutron net-list | grep ctlplane | awk '{print $2;}')
+                sudo ip netns list | grep "qdhcp-$net_id"
+                if [ $? != 0 ] ; then
+                    sudo ip netns add qdhcp-$net_id
+                    sudo ip netns exec qdhcp-$net_id ip link set lo up
+                    subnet_id=$(neutron net-list | grep ctlplane | awk '{print $6;}')
+
+                    if [ "$MY_GATEWAY" != "" ] ; then
+                         neutron subnet-update --gateway $MY_GATEWAY $subnet_id
+                    fi
+
+                    for port in $(neutron port-list | grep $subnet_id | awk '{print $2;}') ; do
+                        neutron port-show $port | grep device_owner | grep network:dhcp
+                        if [ $? == 0 ] ; then
+                            tapname=${port:0:11}
+                            sudo ip link add tap${tapname} type veth peer name tmp${tapname}
+                            sudo ip link set tap${tapname} netns qdhcp-$net_id
+                            sudo ip netns exec qdhcp-$net_id  ip link set tap${tapname} up
+                            sudo ip netns exec qdhcp-$net_id  iptables -F
+                            sudo ip link set dev tmp${tapname} name tap${tapname}
+                            sudo ip link set tap${tapname} up
+                            sudo ovs-vsctl add-port br-ctlplane tap${tapname}
+                            sudo ip netns exec qdhcp-$net_id ip a
+                            sudo ovs-vsctl show
+                            sudo systemctl stop neutron-dhcp-agent
+                            sudo systemctl start neutron-dhcp-agent
+                            sleep 5
+                            #sudo openstack-service restart
+                            sudo ps -elf | grep dnsmasq
+                        fi
+                    done
+                fi
+
+                #cp -rf /usr/share/openstack-tripleo-heat-templates ~/my_templates/
+
+                if [ ! -d ~/my_templates ] ; then 
+                     cp -rf /root/my_templates  ~/my_templates
+                fi
+
+                #sudo openstack-config --set /etc/nova/nova.conf DEFAULT rpc_response_timeout 600
+                #sudo openstack-config --set /etc/ironic/ironic.conf DEFAULT rpc_response_timeout 600
+
+                #heat stack-delete -y overcloud || true
+                #openstack overcloud deploy --templates ~/my_templates/ -e ~/my_templates/my_params.yaml
+                cd ~
+                source ~/stackrc
+
+                if [ "$MY_GATEWAY" != "" ] ; then
+                     NTP_SERVER=$MY_GATEWAY
+                else
+                     NTP_SERVER="172.16.0.254"
+                fi
+
+#openstack overcloud deploy --templates ~/my_templates \
+#-e ~/my_templates/environments/network-isolation.yaml \
+#-e ~/my_templates/network/config/network_environment.yaml \
+#-e ~/my_templates/environments/storage-environment.yaml \
+#-e ~/my_templates/environments/tony-environment.yaml \
+#--control-scale 3 \
+#--compute-scale 2 \
+#--ceph-storage-scale 3 \
+#--control-flavor control --compute-flavor compute --ceph-storage-flavor ceph-storage --ntp-server $NTP_SERVER \
+#--neutron-tunnel-types vlan --neutron-disable-tunneling \
+#--neutron-network-type vlan --neutron-network-vlan-ranges tenantplane:2:4090 \
+#--neutron-bridge-mappings datacentre:br-ctlplane,tenantplane:br-tenantplane
+
+#openstack overcloud deploy --templates --ntp-server $NTP_SERVER --control-scale 3 --compute-scale 2 --neutron-tunnel-types vxlan --neutron-network-type vxlan
+
+openstack overcloud deploy --templates ~/my_templates \
+-e ~/my_templates/environments/network-isolation.yaml \
+-e ~/my_templates/network/config/network_environment.yaml \
+-e ~/my_templates/environments/storage-environment.yaml \
+-e ~/my_templates/environments/tony-environment.yaml \
+--control-scale 3 \
+--compute-scale 2 \
+--control-flavor control --compute-flavor compute --ceph-storage-flavor ceph-storage --ntp-server $NTP_SERVER \
+--neutron-tunnel-types vlan --neutron-disable-tunneling \
+--neutron-network-type vlan --neutron-network-vlan-ranges tenantplane:2:4090 \
+--neutron-bridge-mappings datacentre:br-ctlplane,tenantplane:br-tenantplane
+
+
+                touch /home/stack/done
+
+                fi
+    fi
+fi
