@@ -13,7 +13,7 @@ ENV container docker
 
 LABEL Version=1.0
 LABEL Vendor="Red Hat" License=GPLv3
-LABEL INSTALL="docker run --rm --privileged -v /:/host -e HOST=/host -e IMAGE=IMAGE -e NAME=NAME -e ACTION=install -e MY_IP=\${MY_IP} -e VM_IP=\${VM_IP} -e YUM_REPO_PATH=\${YUM_REPO_PATH} -e MY_PREFIX=\${MY_PREFIX} -e MY_GATEWAY=\${MY_GATEWAY} -e MY_HOSTNAME=\${MY_HOSTNAME} -e DATAPATH=\${DATAPATH} IMAGE"
+LABEL INSTALL="docker run --rm --privileged -v /:/host -e HOST=/host -e IMAGE=IMAGE -e NAME=NAME -e ACTION=install -e MY_IFNAME=\${MY_IFNAME} -e MY_IP=\${MY_IP} -e VM_IP=\${VM_IP} -e YUM_REPO_PATH=\${YUM_REPO_PATH} -e MY_PREFIX=\${MY_PREFIX} -e MY_GATEWAY=\${MY_GATEWAY} -e MY_HOSTNAME=\${MY_HOSTNAME} -e DATAPATH=\${DATAPATH} IMAGE"
 LABEL UNINSTALL="docker run --rm --privileged -v /:/host -e HOST=/host -e IMAGE=IMAGE -e NAME=NAME -e ACTION=uninstall IMAGE"
 LABEL RUN="systemctl restart k2c-rhel-repos.service"
 LABEL Name=tonyli71/k2c-rhel-repos BZComponent=k2c-rhel-repos-docker Authoritative_Registry=registry.tonyli71.linkpc.net Build_Host=atomic0.tli.redhat.com build-date=2016-05-10T09:29:47.480951Z
