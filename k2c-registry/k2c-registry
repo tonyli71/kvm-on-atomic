@@ -1,0 +1,72 @@
+#! /bin/bash
+
+set -ex
+
+if [ "$ACTION" == "install" ] ; then
+    /usr/bin/install.sh
+    exit 0
+fi
+
+if [ "$ACTION" == "uninstall" ] ; then
+    /usr/bin/uninstall.sh
+    exit 0
+fi
+
+if [ "$ADEBUG" != "" ] ; then
+    if [ "$ADEBUG" == "1" ] ; then
+       set -ex
+    fi
+else
+    set -ex
+fi
+
+export LC_ALL=C
+
+if [ ! -f /etc/ssh/ssh_host_dsa_key ] ; then
+     ssh-keygen -t dsa -q -N "" -f /etc/ssh/ssh_host_dsa_key
+     ssh-keygen -t rsa -q -N "" -f /etc/ssh/ssh_host_rsa_key
+     ssh-keygen -t ecdsa -q -N "" -f /etc/ssh/ssh_host_ecdsa_key
+     ssh-keygen -t ed25519 -q -N "" -f /etc/ssh/ssh_host_ed25519_key
+fi
+
+if [ "$MY_IP" != "" ] ; then
+    sed -i "s/IPADDR=.*/IPADDR=$MY_IP/g" /etc/sysconfig/network-scripts/ifcfg-br0
+fi
+if [ "$MY_GATEWAY" != "" ] ; then
+    sed -i "s/GATEWAY=.*/GATEWAY=$MY_GATEWAY/g" /etc/sysconfig/network-scripts/ifcfg-br0
+fi
+if [ "$MY_PREFIX" != "" ] ; then
+    sed -i "s/PREFIX=.*/PREFIX=$MY_PREFIX/g" /etc/sysconfig/network-scripts/ifcfg-br0
+fi
+
+systemctl restart messagebus || true
+systemctl restart sshd || true
+systemctl restart iptables || true
+
+/usr/sbin/phys_wait_en0.sh 
+
+cp /etc/docker-registry.service /lib/systemd/system/docker-registry.service
+systemctl restart docker-registry.service
+
+#export DOCKER_REGISTRY_CONFIG=/etc/docker-registry.yml
+
+#source /etc/sysconfig/docker-registry
+#export SETTINGS_FLAVOR
+
+#cd /usr/lib/python2.7/site-packages/docker-registry
+#/usr/bin/gunicorn --access-logfile - --debug --max-requests 100 --graceful-timeout 3600 -t 3600 -k gevent -b ${REGISTRY_ADDRESS}:${REGISTRY_PORT} -w $GUNICORN_WORKERS docker_registry.wsgi:application
+
+if [ -t 0 ] ; then
+   echo 'Starting interactive shell.'
+   export LC_ALL=C
+   /bin/bash
+else
+   echo 'Go loop.'
+   export LC_ALL=C
+   while true ;
+   do
+     /bin/bash
+     sleep 10 & wait $!
+   done
+fi
+
