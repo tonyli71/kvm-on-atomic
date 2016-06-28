@@ -51,6 +51,7 @@ ExecStart=/usr/bin/bootif-fix
 [Install]
 WantedBy=multi-user.target
 EOF
+        if [ ! -f /home/stack/done ] ; then
 
           chown -R stack:stack /root/my_templates
           
@@ -67,6 +68,10 @@ EOF
                    sleep 5
                fi
           done
+        else
+          /bin/systemctl restart  openvswitch.service
+          /usr/bin/openstack-service start
+        fi
 
       else
 

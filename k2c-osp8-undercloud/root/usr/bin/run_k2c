@@ -41,7 +41,7 @@ ln -fs /proc/$pid/ns/net /var/run/netns/$pid
 vethA="veth`uuidgen | awk -F '-' '{print $1}'`"
 vethB="veth`uuidgen | awk -F '-' '{print $1}'`"
 ip link add $vethA type veth peer name $vethB
-brctl addif atomic2 $vethA
+brctl addif atomic1 $vethA
 ip link set $vethA up
 ip link set $vethB netns $pid
 ip netns exec $pid ip link set dev $vethB name en0 || true
@@ -59,7 +59,7 @@ ip netns exec $pid ip link set en1 up
 vethA="veth`uuidgen | awk -F '-' '{print $1}'`"
 vethB="veth`uuidgen | awk -F '-' '{print $1}'`"
 ip link add $vethA type veth peer name $vethB
-brctl addif atomic1 $vethA
+brctl addif atomic2 $vethA
 ip link set $vethA up
 ip link set $vethB netns $pid
 ip netns exec $pid ip link set dev $vethB name en2 || true
@@ -77,7 +77,7 @@ ip netns exec $pid ip link set en3 up
 vethA="veth`uuidgen | awk -F '-' '{print $1}'`"
 vethB="veth`uuidgen | awk -F '-' '{print $1}'`"
 ip link add $vethA type veth peer name $vethB
-brctl addif atomic2 $vethA
+brctl addif atomic1 $vethA
 ip link set $vethA up
 ip link set $vethB netns $pid
 ip netns exec $pid ip link set dev $vethB name em0 || true

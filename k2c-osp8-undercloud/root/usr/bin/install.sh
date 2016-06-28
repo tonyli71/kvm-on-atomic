@@ -9,8 +9,16 @@ if [ "$MY_IP" != "" ] ; then
 
 # Copy Exe file 
 touch ${HOST}/var/opt/run_${NAME}
-cp -p /usr/bin/run_k2c ${HOST}/var/opt/run_${NAME}
+#cp -p /usr/bin/run_k2c ${HOST}/var/opt/run_${NAME}
+sed -e "s/k2c_demo/${NAME}/g" /usr/bin/run_k2c > ${HOST}/var/opt/run_${NAME}
+
+if [ "$MY_IFNAME" != "" ] ;then
+    sed -i "s/atomic1/${MY_IFNAME}/g"  ${HOST}/var/opt/run_${NAME}
+fi
+
+chmod -v +x ${HOST}/var/opt/run_${NAME}
 chcon -v -R -u system_u -r object_r -t mount_exec_t ${HOST}/var/opt/run_${NAME}
+
 
 if [ "$MY_HOSTNAME" == "" ] ; then
       MY_HOSTNAME=${NAME}

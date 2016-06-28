@@ -12,7 +12,7 @@ ENV container docker
 LABEL Version=1.0
 LABEL Vendor="Red Hat" License=GPLv3
 
-LABEL INSTALL="docker run --rm --privileged -v /:/host -e HOST=/host -e IMAGE=IMAGE -e NAME=NAME -e ACTION=install -e MY_IP=\${MY_IP} -e VM_IP=\${VM_IP} -e YUM_REPO_PREFIX=\${YUM_REPO_PREFIX} -e MY_PREFIX=\${MY_PREFIX} -e MY_GATEWAY=\${MY_GATEWAY} -e MY_HOSTNAME=\${MY_HOSTNAME} -e VM_VCPU=\${VM_VCPU} -e VM_RAM=\${VM_RAM} -e VNC_PORT=\${VNC_PORT} -e MY_VMNAME=\${MY_VMNAME} -e DATAPATH=\${DATAPATH} -e SWIFTPATH=\${SWIFTPATH} -e MYDBPATH=\${MYDBPATH} -e GLANCEPATH=\${GLANCEPATH} -e BRCTL_SUBNET_PREFIX=\${BRCTL_SUBNET_PREFIX} IMAGE"
+LABEL INSTALL="docker run --rm --privileged -v /:/host -e HOST=/host -e IMAGE=IMAGE -e NAME=NAME -e ACTION=install -e MY_IFNAME=\${MY_IFNAME} -e MY_IP=\${MY_IP} -e VM_IP=\${VM_IP} -e YUM_REPO_PREFIX=\${YUM_REPO_PREFIX} -e MY_PREFIX=\${MY_PREFIX} -e MY_GATEWAY=\${MY_GATEWAY} -e MY_HOSTNAME=\${MY_HOSTNAME} -e VM_VCPU=\${VM_VCPU} -e VM_RAM=\${VM_RAM} -e VNC_PORT=\${VNC_PORT} -e MY_VMNAME=\${MY_VMNAME} -e DATAPATH=\${DATAPATH} -e SWIFTPATH=\${SWIFTPATH} -e MYDBPATH=\${MYDBPATH} -e GLANCEPATH=\${GLANCEPATH} -e BRCTL_SUBNET_PREFIX=\${BRCTL_SUBNET_PREFIX} IMAGE"
 
 LABEL UNINSTALL="docker run --rm --privileged -v /:/host -e HOST=/host -e IMAGE=IMAGE -e NAME=NAME -e ACTION=uninstall IMAGE"
 LABEL RUN="systemctl restart k2c-osp8-undercloud.service" 
@@ -24,7 +24,7 @@ RUN rm -rf /root/net-*; mv /usr/bin/yum /usr/bin/yum.org ; echo  '/usr/bin/yum.o
 yum -y install sudo python-rdomanager-oscplugin rabbitmq-server facter openstack-utils keepalived iptables-services pystache xinetd httpd lsscsi iscsi-initiator-utils sg3_utils device-mapper-multipath scsi-target-utils sysfsutils ceph-common \
 genisoimage targetcli tftp-server mariadb-galera-server \
 openstack-neutron* openstack-ironic* openstack-nova* openstack-tripleo* openstack-heat* openstack-keystone* openstack-glance* openstack-ceilometer* openstack-swift* mariadb-devel memcached git erase yum-utils \
-openstack-puppet-modules* puppet selinux-policy-devel instack-undercloud* ansible grub2-tools;\
+openstack-puppet-modules* puppet selinux-policy-devel instack-undercloud* ansible grub2-tools kernel-devel;\
 yum -y update; useradd stack;\
 echo "redhat" | passwd root --stdin ;\
 echo "redhat" | passwd stack --stdin;\

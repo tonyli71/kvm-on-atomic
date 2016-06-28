@@ -32,10 +32,15 @@ function update_server_ip_address () {
         #ps -elf | grep named | grep -v grep
         #if [ "$?" != "0" ] ; then
             #/bin/bash
-            cp /etc/named.service /lib/systemd/system/named.service
-            /bin/systemctl start named.service
+            #cp /etc/httpd.service /etc/systemd/system/httpd.service
             /bin/systemctl stop  ipa.service
+            #cp /etc/named.service /lib/systemd/system/named.service
+            systemctl start dirsrv.target
+            systemctl start krb5kdc.service
+            systemctl start kadmin
+            /bin/systemctl start named.service
             /bin/systemctl start ipa.service
+            sleep 30
         #fi
         #kinit -k
         #(
@@ -46,7 +51,6 @@ function update_server_ip_address () {
         #        echo "send"
         #        echo "quit"
         #) | nsupdate -g
-        sleep 60
         HOSTNAME_FQDN=$(hostname)
         MY_IP=${IPA_SERVER_IP:-$( /sbin/ip addr show | awk '/inet .*global/ { split($2,a,"/"); print a[1]; }' | head -1 )}
         kinit -k
@@ -70,9 +74,14 @@ function upgrade_server () {
                         /tmp/$i.script 2
                 fi
         done
-        ipa-ldap-updater -u -q -y /data/ds-master-password
+        #ipa-ldap-updater -u -q -y /data/ds-master-password
+                systemctl restart messagebus || true
         systemctl start certmonger.service
-        ipa-upgradeconfig
+                systemctl start dirsrv.target
+                systemctl start named
+                systemctl start-enabled
+        #ipa-upgradeconfig
+        ipa-server-upgrade -v
         for c in /etc/systemctl-lite-enabled/*-domainname.service ; do
                 base_c=$(basename $c)
                 for i in /usr/lib/systemd/system/*-domainname.service ; do
@@ -87,11 +96,10 @@ function upgrade_server () {
         cp -f /data-template/build-id /data/build-id
 }
 
-#trap exit TERM
-#trap stop_running EXIT
+trap exit TERM
+trap stop_running EXIT
 
 if [ ! -f /etc/ipa-server-init ] ; then
-    cp /etc/named.service /lib/systemd/system/named.service
     cd / ; mkdir /data-template ; cat /etc/volume-data-list | while read i ; do if [ -e $i ] ; then tar cf - .$i | ( cd /data-template && tar xf - ) ; fi ; mkdir -p $( dirname $i ) ; rm -rf $i ; ln -sf /data${i%/} ${i%/} ; done ; \
     mv /data-template/etc/dirsrv/schema /usr/share/dirsrv/schema && ln -s /usr/share/dirsrv/schema /data-template/etc/dirsrv/schema ; echo 0.5 > /etc/volume-version ; uuidgen > /data-template/build-id
     touch /etc/ipa-server-init
@@ -115,9 +123,13 @@ echo "HOSTNAME_FQDN=$HOSTNAME_FQDN"
 OLD_IP=`cat /etc/hosts | grep $HOSTNAME_FQDN | awk -F ' ' '{ print $1;}'`
 echo "HOSTNAME_OLD_IP=$OLD_IP"
 
-if [ "$OLD_IP" != "" ] ; then
+if [ "$MY_IP" != "" ] ; then
+    if [ "$OLD_IP" != "" ] ; then
        cp /etc/hosts /tmp/hosts.docker
        cat /tmp/hosts.docker | sed  "s/$OLD_IP/$MY_IP/g" > /etc/hosts
+    else
+       echo "$MY_IP	 $HOSTNAME_FQDN" >> /etc/hosts
+    fi
 fi
 
 CAN_EDIT_RESOLV_CONF=0
@@ -135,19 +147,58 @@ if [ ! -f /etc/ssh/ssh_host_dsa_key ] ; then
 fi
 
 if [ "$MY_IP" != "" ] ; then
-    sed -i "s/IPADDR=.*/IPADDR=$MY_IP/g" /etc/sysconfig/network-scripts/ifcfg-br0
+    br="br0"
+    echo -e "NAME=${br}\nDEVICE=${br}\nIPADDR=$MY_IP\nPREFIX=24\nTYPE=Bridge\nBOOTPROTO=none\nONBOOT=yes\nNM_CONTROLLED=no\n" > /etc/sysconfig/network-scripts/ifcfg-${br}
+    if [ "$MY_GATEWAY" != "" ] ; then
+       echo -e "GATEWAY=$MY_GATEWAY\nDEFROUTE=yes" >> /etc/sysconfig/network-scripts/ifcfg-${br}
+    fi
+#    if [ "$MY_PREFIX" != "" ] ; then
+#       sed -i "s/PREFIX=.*/PREFIX=$MY_PREFIX/g" /etc/sysconfig/network-scripts/ifcfg-${br}
+#    fi
 fi
-if [ "$MY_GATEWAY" != "" ] ; then
-    sed -i "s/GATEWAY=.*/GATEWAY=$MY_GATEWAY/g" /etc/sysconfig/network-scripts/ifcfg-br0
+
+if [ "$MY_IP1" != "" ] ; then
+    br="br1"
+    echo -e "NAME=${br}\nDEVICE=${br}\nIPADDR=$MY_IP1\nPREFIX=24\nTYPE=Bridge\nBOOTPROTO=none\nONBOOT=yes\nNM_CONTROLLED=no\n" > /etc/sysconfig/network-scripts/ifcfg-${br}
+    if [ "$MY_GATEWAY1" != "" ] ; then
+       echo -e "GATEWAY=$MY_GATEWAY1\nDEFROUTE=yes" >> /etc/sysconfig/network-scripts/ifcfg-${br}
+    fi
+    if [ "$MY_PREFIX1" != "" ] ; then
+       sed -i "s/PREFIX=.*/PREFIX=$MY_PREFIX1/g" /etc/sysconfig/network-scripts/ifcfg-${br}
+    fi
 fi
-if [ "$MY_PREFIX" != "" ] ; then
-    sed -i "s/PREFIX=.*/PREFIX=$MY_PREFIX/g" /etc/sysconfig/network-scripts/ifcfg-br0
+
+if [ "$MY_IP2" != "" ] ; then
+    br="br2"
+    echo -e "NAME=${br}\nDEVICE=${br}\nIPADDR=$MY_IP2\nPREFIX=24\nTYPE=Bridge\nBOOTPROTO=none\nONBOOT=yes\nNM_CONTROLLED=no\n" > /etc/sysconfig/network-scripts/ifcfg-${br}
+    if [ "$MY_GATEWAY2" != "" ] ; then
+       echo -e "GATEWAY=$MY_GATEWAY2\nDEFROUTE=yes" >> /etc/sysconfig/network-scripts/ifcfg-${br}
+    fi
+    if [ "$MY_PREFIX2" != "" ] ; then
+       sed -i "s/PREFIX=.*/PREFIX=$MY_PREFIX2/g" /etc/sysconfig/network-scripts/ifcfg-${br}
+    fi
+fi
+
+if [ "$MY_IP3" != "" ] ; then
+    br="br3"
+    echo -e "NAME=${br}\nDEVICE=${br}\nIPADDR=$MY_IP3\nPREFIX=24\nTYPE=Bridge\nBOOTPROTO=none\nONBOOT=yes\nNM_CONTROLLED=no\n" > /etc/sysconfig/network-scripts/ifcfg-${br}
+    if [ "$MY_GATEWAY3" != "" ] ; then
+       echo -e "GATEWAY=$MY_GATEWAY3\nDEFROUTE=yes" >> /etc/sysconfig/network-scripts/ifcfg-${br}
+    fi
+    if [ "$MY_PREFIX3" != "" ] ; then
+       sed -i "s/PREFIX=.*/PREFIX=$MY_PREFIX3/g" /etc/sysconfig/network-scripts/ifcfg-${br}
+    fi
 fi
 
 /usr/sbin/phys_wait_en0.sh
 
+/usr/sbin/sysctl -p || true
+
+systemctl restart iptables || true
+
 if [ "$(netstat -lnp | grep 22 | grep sshd)" == "" ] ; then
    systemctl start sshd.service
+   #systemctl restart sshd || true
 fi
 
 if [ -f /etc/ipa/ca.crt ] ; then
@@ -164,6 +215,13 @@ if [ -f /etc/ipa/ca.crt ] ; then
         rm -rf /var/lib/sss/pubconf/kdcinfo.*
         if diff -q /data/build-id /data-template/build-id ; then
                 echo "IPA server is already configured, starting the services."
+                systemctl restart messagebus || true
+                #systemctl start certmonger.service
+                systemctl start dirsrv.target
+                #systemctl start krb5kdc.service
+                #systemctl start kadmin
+                systemctl start named
+                systemctl start-enabled
         else
                 echo "IPA server is already configured but with different version, starting upgrade."
                 for d in /usr/share/java/resteasy* ; do
@@ -177,13 +235,13 @@ if [ -f /etc/ipa/ca.crt ] ; then
                         fi
                 done
                 upgrade_server
+                #update_server_ip_address
+                systemctl stop ipa
+                systemctl start dirsrv.target
+                systemctl start named
+                systemctl start-enabled
         fi
-        systemctl start-enabled
-        HOSTNAME_FQDN=$(hostname)
-        while ! host $HOSTNAME_FQDN > /dev/null ; do
-                sleep 5
-        done
-        update_server_ip_address
+        #update_server_ip_address
         while ! host $HOSTNAME_FQDN > /dev/null ; do
                 sleep 5
         done
@@ -250,6 +308,8 @@ else
                         fi
                         echo "--admin-password=$PASSWORD"
                         echo "$PASSWORD" > /data/ds-master-password
+                        # set container root password
+                        echo "$PASSWORD" | passwd root --stdin 
                 fi
                 if [ -n "$DEBUG" ] ; then
                         echo "--debug"
@@ -282,6 +342,12 @@ else
                 done
                 cp /etc/volume-version /data/volume-version
                 update_server_ip_address
+                if [ "$MY_PREFIX" != "" ] ; then
+                    br="br0"
+                    sed -i "s/PREFIX=.*/PREFIX=$MY_PREFIX/g" /etc/sysconfig/network-scripts/ifcfg-${br}
+                    ifdown ${br}
+                    ifup ${br}
+                fi
                 echo "IPA server configured."
         else
                 ret=$?
@@ -290,9 +356,6 @@ else
         fi
 fi
 
-systemctl restart messagebus || true
-systemctl restart sshd || true
-systemctl restart iptables || true
 
 if [ "$(netstat -lnp | grep 123 | grep ntpd)" == "" ] ; then
    /usr/sbin/ntpd

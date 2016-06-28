@@ -13,7 +13,7 @@ ENV container docker
 
 LABEL Version=1.0
 LABEL Vendor="Red Hat" License=GPLv3
-LABEL INSTALL="docker run --rm --privileged -v /:/host -e HOST=/host -e IMAGE=IMAGE -e NAME=NAME -e ACTION=install -e ADMIN_PASSWORD=\${ADMIN_PASSWORD} -e MY_IFNAME=\${MY_IFNAME} -e MY_IP=\${MY_IP} -e VM_IP=\${VM_IP} -e MY_DATA=\${MY_DATA} -e MY_PREFIX=\${MY_PREFIX} -e MY_GATEWAY=\${MY_GATEWAY} -e MY_HOSTNAME=\${MY_HOSTNAME} -e MY_DNS=\${MY_DNS} -e FORWARDER=\${FORWARDER} -e DATAPATH=\${DATAPATH} IMAGE"
+LABEL INSTALL="docker run --rm --privileged -v /:/host -e HOST=/host -e IMAGE=IMAGE -e NAME=NAME -e ACTION=install -e ADMIN_PASSWORD=\${ADMIN_PASSWORD} -e MY_IFNAME=\${MY_IFNAME} -e MY_IP=\${MY_IP}  -e MY_PREFIX=\${MY_PREFIX} -e MY_GATEWAY=\${MY_GATEWAY} -e MY_IFNAME1=\${MY_IFNAME1} -e MY_IP1=\${MY_IP1}  -e MY_PREFIX1=\${MY_PREFIX1} -e MY_GATEWAY1=\${MY_GATEWAY1} -e MY_IFNAME2=\${MY_IFNAME2} -e MY_IP2=\${MY_IP2}  -e MY_PREFIX2=\${MY_PREFIX2} -e MY_GATEWAY2=\${MY_GATEWAY2} -e MY_IFNAME3=\${MY_IFNAME3} -e MY_IP3=\${MY_IP3}  -e MY_PREFIX3=\${MY_PREFIX3} -e MY_GATEWAY3=\${MY_GATEWAY3} -e MY_DATA=\${MY_DATA} -e MY_HOSTNAME=\${MY_HOSTNAME} -e MY_DNS=\${MY_DNS} -e FORWARDER=\${FORWARDER} -e DATAPATH=\${DATAPATH} IMAGE"
 LABEL UNINSTALL="docker run --rm --privileged -v /:/host -e HOST=/host -e IMAGE=IMAGE -e NAME=NAME -e ACTION=uninstall IMAGE"
 LABEL RUN="systemctl restart k2c-ipa-server.service"
 LABEL Name=tonyli71/k2c-ipa-server BZComponent=k2c-ipa-server-docker Authoritative_Registry=registry.tonyli71.linkpc.net Build_Host=atomic0.tli.redhat.com build-date=2016-05-10T09:29:47.480951Z
@@ -53,6 +53,6 @@ EXPOSE 22 53/udp 53 80 443 389 636 88 464 88/udp 464/udp 123/udp 7389 9443 9444 
 VOLUME /data
 
 ADD k2c-ipa-server /usr/sbin/k2c-ipa-server
-RUN chmod -v +x /usr/sbin/k2c-ipa-server
+RUN chmod -v +x /usr/bin/systemctl /usr/bin/systemctl-socket-daemon /usr/sbin/k2c-ipa-server
 ENTRYPOINT /usr/sbin/k2c-ipa-server
 
