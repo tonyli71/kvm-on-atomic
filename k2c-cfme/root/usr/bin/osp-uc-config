@@ -1,0 +1,6 @@
+#! /usr/bin/bash
+
+if [ ! -f /home/stack/stackrc ] ; then 
+    openstack undercloud install
+fi
+

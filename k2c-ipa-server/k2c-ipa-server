@@ -365,6 +365,10 @@ if [ "$(netstat -lnp | grep 22 | grep sshd)" == "" ] ; then
    systemctl start sshd.service
 fi
 
+if [ "$(netstat -lnp | grep 443 | grep httpd)" == "" ] ; then
+   systemctl restart httpd.service
+fi
+
 if [ -t 0 ] ; then
    echo 'Starting interactive shell.'
    export LC_ALL=C
