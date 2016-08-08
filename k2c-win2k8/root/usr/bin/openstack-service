@@ -1,0 +1,168 @@
+#!/usr/bin/bash
+
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
+
+action="$1"
+shift
+
+if [ "$action" == "list" ] ; then
+   echo "neutron-dhcp-agent
+neutron-openvswitch-agent
+neutron-server
+openstack-ceilometer-alarm-evaluator
+openstack-ceilometer-alarm-notifier
+openstack-ceilometer-api
+openstack-ceilometer-central
+openstack-ceilometer-collector
+openstack-ceilometer-notification
+openstack-glance-api
+openstack-glance-registry
+openstack-heat-api-cfn
+openstack-heat-api-cloudwatch
+openstack-heat-api
+openstack-heat-engine
+openstack-ironic-api
+openstack-ironic-conductor
+openstack-ironic-inspector-dnsmasq
+openstack-ironic-inspector
+openstack-nova-api
+openstack-nova-cert
+openstack-nova-compute
+openstack-nova-conductor
+openstack-nova-scheduler
+openstack-swift-account-auditor
+openstack-swift-account-reaper
+openstack-swift-account-replicator
+openstack-swift-account
+openstack-swift-container-auditor
+openstack-swift-container-replicator
+openstack-swift-container-updater
+openstack-swift-container
+openstack-swift-object-auditor
+openstack-swift-object-replicator
+openstack-swift-object-updater
+openstack-swift-object
+openstack-swift-proxy"
+
+elif [ "$action" == "start" ] ; then
+   systemctl start neutron-dhcp-agent.service
+   systemctl start neutron-openvswitch-agent
+   systemctl start neutron-server
+   systemctl start openstack-ceilometer-alarm-evaluator
+   systemctl start openstack-ceilometer-alarm-notifier
+   systemctl start openstack-ceilometer-api
+   systemctl start openstack-ceilometer-central
+   systemctl start openstack-ceilometer-collector
+   systemctl start openstack-ceilometer-notification
+   systemctl start openstack-glance-api
+   systemctl start openstack-glance-registry
+   systemctl start openstack-heat-api-cfn
+   systemctl start openstack-heat-api-cloudwatch
+   systemctl start openstack-heat-api
+   systemctl start openstack-heat-engine
+   systemctl start openstack-ironic-api
+   systemctl start openstack-ironic-conductor
+   systemctl start openstack-ironic-inspector-dnsmasq
+   systemctl start openstack-ironic-inspector
+   systemctl start openstack-nova-api
+   systemctl start openstack-nova-cert
+   systemctl start openstack-nova-compute
+   systemctl start openstack-nova-conductor
+   systemctl start openstack-nova-scheduler
+   systemctl start openstack-swift-account-auditor
+   systemctl start openstack-swift-account-reaper
+   systemctl start openstack-swift-account-replicator
+   systemctl start openstack-swift-account
+   systemctl start openstack-swift-container-auditor
+   systemctl start openstack-swift-container-replicator
+   systemctl start openstack-swift-container-updater
+   systemctl start openstack-swift-container
+   systemctl start openstack-swift-object-auditor
+   systemctl start openstack-swift-object-replicator
+   systemctl start openstack-swift-object-updater
+   systemctl start openstack-swift-object
+   systemctl start openstack-swift-proxy
+elif [ "$action" == "stop" ] ; then
+   systemctl stop neutron-dhcp-agent.service
+   systemctl stop neutron-openvswitch-agent
+   systemctl stop neutron-server
+   systemctl stop openstack-ceilometer-alarm-evaluator
+   systemctl stop openstack-ceilometer-alarm-notifier
+   systemctl stop openstack-ceilometer-api
+   systemctl stop openstack-ceilometer-central
+   systemctl stop openstack-ceilometer-collector
+   systemctl stop openstack-ceilometer-notification
+   systemctl stop openstack-glance-api
+   systemctl stop openstack-glance-registry
+   systemctl stop openstack-heat-api-cfn
+   systemctl stop openstack-heat-api-cloudwatch
+   systemctl stop openstack-heat-api
+   systemctl stop openstack-heat-engine
+   systemctl stop openstack-ironic-api
+   systemctl stop openstack-ironic-conductor
+   systemctl stop openstack-ironic-inspector-dnsmasq
+   systemctl stop openstack-ironic-inspector
+   systemctl stop openstack-nova-api
+   systemctl stop openstack-nova-cert
+   systemctl stop openstack-nova-compute
+   systemctl stop openstack-nova-conductor
+   systemctl stop openstack-nova-scheduler
+   systemctl stop openstack-swift-account-auditor
+   systemctl stop openstack-swift-account-reaper
+   systemctl stop openstack-swift-account-replicator
+   systemctl stop openstack-swift-account
+   systemctl stop openstack-swift-container-auditor
+   systemctl stop openstack-swift-container-replicator
+   systemctl stop openstack-swift-container-updater
+   systemctl stop openstack-swift-container
+   systemctl stop openstack-swift-object-auditor
+   systemctl stop openstack-swift-object-replicator
+   systemctl stop openstack-swift-object-updater
+   systemctl stop openstack-swift-object
+   systemctl stop openstack-swift-proxy
+elif [ "$action" == "status" ] ; then
+
+   echo "neutron-dhcp-agent $(systemctl status neutron-dhcp-agent.service)
+   echo "neutron-openvswitch-agent $(systemctl status neutron-openvswitch-agent)
+   echo "neutron-server $(systemctl status neutron-server)
+   echo "openstack-ceilometer-alarm-evaluator $(systemctl status openstack-ceilometer-alarm-evaluator)
+   echo "openstack-ceilometer-alarm-notifier $(systemctl status openstack-ceilometer-alarm-notifier)
+   echo "openstack-ceilometer-api $(systemctl status openstack-ceilometer-api)
+   echo "openstack-ceilometer-central $(systemctl status openstack-ceilometer-central)
+   echo "openstack-ceilometer-collector $(systemctl status openstack-ceilometer-collector)
+   echo "openstack-ceilometer-notification $(systemctl status openstack-ceilometer-notification)
+   echo "openstack-glance-api $(systemctl status openstack-glance-api)
+   echo "openstack-glance-registry $(systemctl status openstack-glance-registry)
+   echo "openstack-heat-api-cfn $(systemctl status openstack-heat-api-cfn)
+   echo "openstack-heat-api-cloudwatch $(systemctl status openstack-heat-api-cloudwatch)
+   echo "openstack-heat-api $(systemctl status openstack-heat-api)
+   echo "openstack-heat-engine $(systemctl status openstack-heat-engine)
+   echo "openstack-ironic-api $(systemctl status openstack-ironic-api)
+   echo "openstack-ironic-conductor $(systemctl status openstack-ironic-conductor)
+   echo "openstack-ironic-inspector-dnsmasq $(systemctl status openstack-ironic-inspector-dnsmasq)
+   echo "openstack-ironic-inspector $(systemctl status openstack-ironic-inspector)
+   echo "openstack-nova-api $(systemctl status openstack-nova-api)
+   echo "openstack-nova-cert $(systemctl status openstack-nova-cert)
+   echo "openstack-nova-compute $(systemctl status openstack-nova-compute)
+   echo "openstack-nova-conductor $(systemctl status openstack-nova-conductor)
+   echo "openstack-nova-scheduler $(systemctl status openstack-nova-scheduler)
+   echo "openstack-swift-account-auditor $(systemctl status openstack-swift-account-auditor)
+   echo "openstack-swift-account-reaper $(systemctl status openstack-swift-account-reaper)
+   echo "openstack-swift-account-replicator $(systemctl status openstack-swift-account-replicator)
+   echo "openstack-swift-account $(systemctl status openstack-swift-account)
+   echo "openstack-swift-container-auditor $(systemctl status openstack-swift-container-auditor)
+   echo "openstack-swift-container-replicator $(systemctl status openstack-swift-container-replicator)
+   echo "openstack-swift-container-updater $(systemctl status openstack-swift-container-updater)
+   echo "openstack-swift-container $(systemctl status openstack-swift-container)
+   echo "openstack-swift-object-auditor $(systemctl status openstack-swift-object-auditor)
+   echo "openstack-swift-object-replicator $(systemctl status openstack-swift-object-replicator)
+   echo "openstack-swift-object-updater $(systemctl status openstack-swift-object-updater)
+   echo "openstack-swift-object $(systemctl status openstack-swift-object)
+   echo "openstack-swift-proxy $(systemctl status openstack-swift-proxy)
+
+elif [ "$action" == "restart" ] ; then
+   openstack-service stop
+   openstack-service start
+else
+    echo ""
+fi

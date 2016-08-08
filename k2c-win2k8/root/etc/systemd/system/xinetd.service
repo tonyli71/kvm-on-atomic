@@ -1,0 +1,11 @@
+[Unit]
+Description=Xinetd A Powerful Replacement For Inetd
+
+[Service]
+PIDFile=/var/run/xinetd.pid
+ExecStartPre=/bin/mkdir -p /var/run/xinet
+ExecStartPre=/bin/chmod g+w /var/run/ /var/run/dbus/
+EnvironmentFile=-/etc/sysconfig/xinetd
+ExecStart=/usr/sbin/xinetd -stayalive -pidfile /var/run/xinetd.pid
+ExecReload=/usr/bin/kill -HUP $MAINPID
+ExecStop=/usr/bin/killall /usr/sbin/xinetd

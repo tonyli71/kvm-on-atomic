@@ -1,0 +1,17 @@
+[Unit]
+Description=OpenStack Identity Service (code-named Keystone)
+After=network.target
+
+[Service]
+Type=notify
+NotifyAccess=all
+Restart=always
+User=keystone
+ExecStart=/usr/bin/keystone-all
+RemainAfterExit=yes
+KillSignal=SIGCONT
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+

@@ -1,0 +1,14 @@
+[Unit]
+Description=Setup OSP UnderCloud
+After=network.service
+
+[Service]
+User=stack
+Group=stack
+StandardOutput=syslog
+TTYPath=/dev/console
+Type=oneshot
+ExecStart=/usr/bin/bash -c "/usr/bin/osp-uc-config"
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,17 @@
+[Unit]
+Description=RabbitMQ broker
+
+[Service]
+Type=notify
+User=rabbitmq
+Group=rabbitmq
+WorkingDirectory=/var/lib/rabbitmq
+ExecStart=/usr/lib/rabbitmq/bin/rabbitmq-server
+ExecStop=/usr/lib/rabbitmq/bin/rabbitmqctl stop
+ExecReload=/usr/bin/bash -c "/usr/lib/rabbitmq/bin/rabbitmqctl stop; /usr/lib/rabbitmq/bin/rabbitmq-server"
+KillSignal=SIGCONT
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+
